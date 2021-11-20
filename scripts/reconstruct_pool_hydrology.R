@@ -34,6 +34,9 @@ surface_CI <- 1.1442
 # convert the pool parameters to a list
 pool_list <- split(pool_par, pool_par$pool_id)
 
+
+# apply over all pools here
+
 # subset out the first pool
 pool_n <- pool_list[[1]]
 
@@ -79,12 +82,14 @@ for (i in 2:length(depth) ) {
 # test if the correct number of depth measurements were produced
 length(depth) == nrow(pool_prec)
 
+# test if all depths are not NAs
+any(is.na(depth))
+
 # add the depth data to the pool_prec data
 pool_prec$depth_mm <- depth
 
-# view the data
-View(pool_prec)
-View(pool_prec[(pool_prec$year == 1991 ), ])
+# use the reconstructed depth data to calculate hydroperiods
+
 
 
 
