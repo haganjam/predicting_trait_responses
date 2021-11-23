@@ -7,6 +7,7 @@
 library(here)
 library(dplyr)
 library(readr)
+library(lubridate)
 
 rm(list = ls())
 
@@ -16,6 +17,7 @@ rm(list = ls())
 dail.prec <- read_csv(here("data/hydrological_model/daily_precipitation_data_raw.csv"))
 nrow(dail.prec)
 head(dail.prec)
+View(dail.prec)
 
 # check for NAs in the daily rainfall and precipitation data
 dail.prec %>%
@@ -24,12 +26,34 @@ dail.prec %>%
 
 # load monthly evaporation data
 mont.evap <- read_csv(here("data/hydrological_model/monthly_evaporation_averages_raw.csv"))
+mont.evap
 
 # read pool-specific parameters
 pool_par <- read_csv(here("data/hydrological_model/pool_specific_parameters_raw.csv"))
 
+# load the calibration data
+cal_dat <- read_csv(here("data/hydrological_model/cleaned_calibration_data.csv"))
+cal_dat[complete.cases(cal_dat), ]
+
 # add the surface evaporation factor
 surface_CI <- 1.1442
+
+# compare precipitation from the calibration data (measured with rain guage on site) and raw data from weather station
+prec.cal <- 
+  cal_dat %>%
+  filter(pool_id == 1) %>%
+  filter(yyyy_mm_dd >= as_date("2005-10-01") &  yyyy_mm_dd <= as_date("2005-11-28")) %>%
+  pull(precipitation_mm)
+
+prec.ws <- 
+  dail.prec %>%
+  filter(yyyy_mm_dd >= as_date("2005-10-01") &  yyyy_mm_dd <= as_date("2005-11-28")) %>%
+  pull(precipitation_mm)
+
+length(prec.cal) == length(prec.ws)
+plot(prec.ws[!is.na(prec.ws)], prec.cal[!is.na(prec.ws)])
+cor(prec.ws[!is.na(prec.ws)], prec.cal[!is.na(prec.ws)])^2
+
 
 # convert the pool parameters to a list
 pool_list <- split(pool_par, pool_par$pool_id)
