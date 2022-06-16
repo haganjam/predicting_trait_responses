@@ -15,6 +15,11 @@ library(vegan)
 com <- read_csv(here("data/analysis_data/com_dat.csv"))
 head(com)
 
+# remove the pool 36
+com <- 
+  com %>%
+  filter(Pool != "P36")
+
 com1 <- 
   com %>%
   mutate(d1990_d2000 = if_else(Date < as.Date("2000/10/14", "%Y/%m/%d"), "1990", "2016")) %>%
@@ -40,24 +45,65 @@ com1 <-
 # check if any pool has more than three samples
 range(com1$n)
 
+# pivot com1 wider again
+com1 <- 
+  com1 %>%
+  select(-n) %>%
+  pivot_wider(id_cols = c("Pool", "d1990_d2000"),
+              names_from = "species",
+              values_from = "abundance.m")
+head(com1)
+
 # create a site information data.frame
-site <- com1[, c("Pool", "Date", "Days_inun")]
+site <- com1[, c("Pool", "d1990_d2000")]
 head(site)
 
 # create a species abundance data.frame
-sp <- com[, names(com) != c("Pool", "Date", "Days_inun")]
+sp <- com1[, names(com1) != c("Pool", "d1990_d2000")]
 head(sp)
-
-# remove rows without zero total species abundance
-x <- apply(sp, 1, function(x) sum(x)) != 0
-sp <- sp[x, ]
-site <- site[x, ]
 
 # add a column of species richness
 site$SR <- apply(sp, 1, function(x) sum(x > 0) )
+View(site)
 
-# add a column for rarefied species richness
-site$SR_rare <- rarefy(x = sp, sample = 10)
+sp.l <- split(sp, site$Pool)
+apply(sp.l[[1]], 1, function(x) x/sum(x))
+
+dom <- 
+  lapply(sp.l, function(y) {
+  
+  # calculate relative abundance
+  x <- apply(y, 1, function(x) x/sum(x))
+  
+  # did any species with a relative abundance of greater than 0.05 go extinct?
+  dom_ext <- sum((x[,1] > 0.1) & (x[,2] == 0) )
+  
+  # what was the relative abundance of species that did go extinct?
+  ra_ext <- mean(x[,1][ (x[, 1] > 0 & x[, 2] == 0) ])
+  
+  # what was the relative abundance of species that colonised?
+  ra_col <- mean(x[,2][ (x[, 2] > 0 & x[, 1] == 0) ])
+  
+  return(data.frame(dom_ext, ra_ext, ra_col))
+  
+} )
+
+dom <- 
+  bind_rows(dom, .id = "Pool") %>%
+  arrange(Pool)
+
+SR_d <- lapply(split(site, site$Pool), function(x) data.frame(diff_SR = diff(x$SR)) )
+SR_d <- 
+  bind_rows(SR_d, .id = "Pool") %>%
+  arrange(Pool)
+
+full_join(SR_d, dom) %>%
+  ggplot(data = .,
+         mapping = aes(x = diff_SR, y = dom_ext)) +
+  geom_point() +
+  geom_abline(intercept = 0, slope = 1, linetype = "dashed") +
+  theme_bw()
+
 
 # check correlation between species richness and rarefied species richness
 plot(site$SR, site$SR_rare)
