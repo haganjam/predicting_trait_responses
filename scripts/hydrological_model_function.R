@@ -10,15 +10,15 @@ hydro_model <- function(P_R_vec, Ev_vec, min_depth, max_depth) {
   for (i in 2:length(depth) ) {
     
     # the precipitation or evaporation data is missing then use the previous value for depth
-    if (is.na(P_R_vec[i]) | is.na(Ev_vec[i]) ) {
+    if (is.na(P_R_vec[i-1]) | is.na(Ev_vec[i-1]) ) {
       
-      x <- depth[i-1]
+      x <- depth[i]
       
     } else {
       
       # calculate the water balance at t:
       # depth at t-1 + (P_R i.e. rainfall) - (Ev i.e. evaporation)
-      x <- depth[i-1] + P_R_vec[i] - Ev_vec[i]
+      x <- depth[i-1] + P_R_vec[i-1] - Ev_vec[i-1]
       
       # if water balance exceeds maximum pool depth, then use the max pool depth
       x <- ifelse(x > max_depth, max_depth, x)
