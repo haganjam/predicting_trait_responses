@@ -55,6 +55,14 @@ com <-
   bind_rows(com) %>%
   select(Pool = ...1, Date, Days_inun, Branchipodopsis:Alfa)
 
+
+# make a data.frame for the biomass conversions
+bio_sp <- data.frame(taxon = names(com)[-c(1,2,3)],
+                     life_stage = NA)
+
+# write this into a .csv file
+write_csv(bio_sp, here("data/biomass_conversions/kor_bio.csv"))
+
 # write the community data into a .csv file
 write_csv(x = com,
           file = here("data/analysis_data/kor_com.csv"))

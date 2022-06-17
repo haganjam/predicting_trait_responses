@@ -11,7 +11,6 @@ library(stringr)
 # load the community data
 com <- read_csv(here("data/australia_inselbergs/reg_spp_site_dat.csv"))
 head(com)
-View(com)
 
 # Caeculidae column has a problem
 com$Caeculidae[1] <- "0"
@@ -90,7 +89,7 @@ bio_sp[bio_sp$taxon == "Orthocladiinae", ]$life_stage <- "pupae"
 # View(bio_sp)
 
 # write this into a .csv file
-write_csv(x = bio_sp, here("data/biomass_conversions/aus_insel_bio.csv"))
+write_csv(x = bio_sp, here("data/biomass_conversions/aus_ins_bio.csv"))
 
 
 # load the environmental data
@@ -116,7 +115,7 @@ env <-
   arrange(site)
 
 # which inselbergs have fewer than 10 ponds i.e. Cluster size
-x <- env$`Cluster size` > 10
+x <- env$cluster_size > 10
 env <- env[x, ]
 com <- com[rep(x, each = length(unique(com$species))), ]
 

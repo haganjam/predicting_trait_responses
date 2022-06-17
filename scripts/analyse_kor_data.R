@@ -1,5 +1,5 @@
 
-# Analyse the community data
+# Analyse the Korranneberg data data
 
 # load packages
 library(dplyr) # data wrangling
@@ -12,17 +12,8 @@ library(here) # path management
 library(vegan)
 
 # load the community data
-com <- read_csv(here("data/analysis_data/com_dat.csv"))
+com <- read_csv(here("data/analysis_data/kor_com.csv"))
 head(com)
-
-# make a data.frame for the biomass conversions
-bio_sp <- data.frame(taxon = names(com)[-c(1,2,3)],
-                     life_stage = NA)
-
-# write this into a .csv file
-write_csv(bio_sp, here("data/biomass_conversions/korr_bio.csv"))
-
-
 
 # remove the pool 36
 com <- 
@@ -156,12 +147,4 @@ ggplot(data = ext_col.df,
   theme_bw() +
   theme(legend.position = "none")
 
-
-
-
-
-
-
-
-
-
+### END
