@@ -11,6 +11,12 @@ library(lubridate) # work with dates
 library(here) # path management
 library(vegan)
 
+# load the plotting theme
+source(here("scripts/Function_plotting_theme.R"))
+
+# set the seed
+set.seed(545983745)
+
 # load the community data
 com <- read_csv(here("data/analysis_data/kor_com.csv"))
 head(com)
@@ -111,27 +117,35 @@ dom.df <-
   dom.df %>%
   mutate(thresh = as.character(thresh))
 
+dom.df1 <- 
+  dom.df %>% 
+  filter(diff_SR < 0) %>%
+  mutate(diff_SR = abs(diff_SR))
+
 # plot the change in species richness and the extinction of species at different thresholds
-ggplot(data = dom.df %>% 
-         filter(diff_SR < 0) %>%
-         mutate(diff_SR = abs(diff_SR)),
+ggplot(data = dom.df1,
        mapping = aes(x = diff_SR, y = n_ext, colour = thresh)) +
-  geom_jitter(width = 0.1, height = 0.1, alpha = 0.5, size = 2) +
+  geom_jitter(width = 0.1, height = 0.1, alpha = 0.75, size = 2, shape = 16) +
   geom_abline(intercept = 0, slope = 1, linetype = "dashed") +
   scale_colour_viridis_d(option = "C", end = 0.95) +
-  scale_x_continuous(limits = c(-0.2, 9.2), breaks = seq(0, 8, 2)) +
-  scale_y_continuous(limits = c(-0.2, 9.2),  breaks = seq(0, 8, 2)) +
+  #scale_fill_viridis_d(option = "C", end = 0.95) +
+  scale_x_continuous(limits = c(-0.2, max(dom.df1$diff_SR)+0.2 ), breaks = seq(0, 10, 2)) +
+  scale_y_continuous(limits = c(-0.2, max(dom.df1$diff_SR)+0.2),  breaks = seq(0, 10, 2)) +
   ylab("Number of extinctions (1993-2016)") +
   xlab("Species richness decrease (1993-2016)") +
   labs(colour = "Extinction threshold (>)") +
-  theme_bw() +
-  theme(legend.position = "top")
+  theme_meta() +
+  theme(legend.position = "top",
+        legend.key = element_rect(fill = NA, color = NA),
+        legend.title = element_text(size = 11),
+        legend.text = element_text(size = 10),
+        legend.spacing.x = unit(0.1, 'cm'))
 
 # plot histograms of the relative abundance of species going extinct and colonising
 ext_col.df <- 
-  rbind(data.frame(ext_col = "Extinction",
+  rbind(data.frame(ext_col = "Extinctions",
                  ra = unlist(lapply(dom, function(x) x[[2]] ), use.names = FALSE)),
-        data.frame(ext_col = "Colonisation",
+        data.frame(ext_col = "Colonisations",
                  ra = unlist(lapply(dom, function(x) x[[3]] ), use.names = FALSE)) )
 
 # plot these data
@@ -144,7 +158,7 @@ ggplot(data = ext_col.df,
   facet_wrap(~ext_col, scales = "free_y") +
   xlab("Relative abundance (1993)") +
   ylab("Density") +
-  theme_bw() +
+  theme_meta() +
   theme(legend.position = "none")
 
 ### END
