@@ -2,11 +2,11 @@
 # Analyse the Australia Inselberg data
 
 # load packages
-library(dplyr) # data wrangling
-library(readr) # read data files
-library(tidyr) # data wrangling
-library(ggplot2) # data visualisation
-library(here) # path management
+library(dplyr)
+library(readr)
+library(tidyr)
+library(ggplot2)
+library(here)
 library(stringr)
 library(vegan)
 
@@ -77,22 +77,48 @@ com <-
   select(site, species, taxon, abundance)
 head(com)
 
-# make a data.frame to get the biomass values for these different taxa
-bio_sp <- 
+# arrange it by site
+com <- 
   com %>%
-  select(taxon) %>%
-  distinct() %>%
-  mutate(life_stage = NA)
+  arrange(site)
 
-bio_sp[bio_sp$taxon == "Orthocladiinae", ]$life_stage <- "pupae"
-View(bio_sp)
+# make a data.frame to get the biomass values for these different taxa
+# bio_sp <- 
+  # com %>%
+  # select(taxon) %>%
+  # distinct() %>%
+  # mutate(life_stage = NA)
+
+# bio_sp[bio_sp$taxon == "Orthocladiinae", ]$life_stage <- "pupae"
+# View(bio_sp)
 
 # write this into a .csv file
-write_csv(x = bio_sp, here("data/biomass_conversions/aus_insel_bio.csv"))
+# write_csv(x = bio_sp, here("data/biomass_conversions/aus_insel_bio.csv"))
 
 
 # load the environmental data
 env <- read_csv(here("data/australia_inselbergs/env_data.csv"))
 head(env)
+
+# rename the species column
+env <- 
+  env %>%
+  rename(site = Species)
+
+# arrange by site
+env <- 
+  env %>%
+  arrange(site)
+
+# which inselbergs have fewer than 10 ponds i.e. Cluster size
+x <- env$`Cluster size` > 10
+env <- env[x, ]
+com <- com[rep(x, each = length(unique(com$species))), ]
+
+# what about the number of sites
+length(unique(env$site)) == length(unique(com$site))
+
+
+
 
 
