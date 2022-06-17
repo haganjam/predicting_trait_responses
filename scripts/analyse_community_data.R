@@ -64,74 +64,91 @@ head(sp)
 
 # add a column of species richness
 site$SR <- apply(sp, 1, function(x) sum(x > 0) )
-View(site)
 
 sp.l <- split(sp, site$Pool)
 apply(sp.l[[1]], 1, function(x) x/sum(x))
 
 dom <- 
   lapply(sp.l, function(y) {
+    
+    x <- apply(y, 1, function(x) x/sum(x))
   
-  # calculate relative abundance
-  x <- apply(y, 1, function(x) x/sum(x))
-  
-  # did any species with a relative abundance of greater than 0.05 go extinct?
-  dom_ext <- sum((x[,1] > 0.1) & (x[,2] == 0) )
-  
-  # what was the relative abundance of species that did go extinct?
-  ra_ext <- mean(x[,1][ (x[, 1] > 0 & x[, 2] == 0) ])
-  
-  # what was the relative abundance of species that colonised?
-  ra_col <- mean(x[,2][ (x[, 2] > 0 & x[, 1] == 0) ])
-  
-  return(data.frame(dom_ext, ra_ext, ra_col))
+    # did any species with a relative abundance of greater than 0.10 go extinct?
+    thresh <- c(0.05, 0.1, 0.5, 0.7)
+    
+    n_ext <- 
+      sapply(thresh, function(z) {
+        
+        sum((x[,1] > z) & (x[,2] == 0) )
+        
+      })
+    
+    dom_ext <- data.frame(thresh = thresh,
+                          n_ext = n_ext)
+    
+    ra_ext <- x[,1][(x[,1] > 0) & (x[,2] == 0)]
+    ra_col <- x[,2][(x[,1] == 0) & (x[,2] > 0)]
+    
+  return(list(dom_ext, "ra_extinct" = ra_ext, "ra_colonise" = ra_col))
   
 } )
 
-dom <- 
-  bind_rows(dom, .id = "Pool") %>%
+dom.df <- 
+  lapply(dom, function(x) x[[1]] ) %>%
+  bind_rows(., .id = "Pool") %>%
   arrange(Pool)
+View(dom.df)
 
-SR_d <- lapply(split(site, site$Pool), function(x) data.frame(diff_SR = diff(x$SR)) )
+# calculate the difference in species richness
 SR_d <- 
-  bind_rows(SR_d, .id = "Pool") %>%
-  arrange(Pool)
-
-full_join(SR_d, dom) %>%
-  ggplot(data = .,
-         mapping = aes(x = diff_SR, y = dom_ext)) +
-  geom_point() +
-  geom_abline(intercept = 0, slope = 1, linetype = "dashed") +
-  theme_bw()
-
-
-# check correlation between species richness and rarefied species richness
-plot(site$SR, site$SR_rare)
-
-# plot changes in species richness through time by pool
-ggplot(data = site %>% filter(Date < as.Date("2000/10/14", "%Y/%m/%d") ),
-       mapping = aes(x = Date,
-                     y = SR,
-                     colour = Pool)) +
-  geom_point() +
-  geom_line() +
-  theme_bw()
-
-site %>%
-  mutate(d1990_d2000 = if_else(Date < as.Date("2000/10/14", "%Y/%m/%d"), "1990", "2016")) %>%
-  group_by(d1990_d2000, Pool) %>%
-  summarise(SR = mean(SR, na.rm = TRUE), .groups = "drop") %>%
+  site %>%
   group_by(Pool) %>%
-  summarise(SR_diff = diff(SR), .groups = "drop") %>%
-  ggplot(data = .,
-         mapping = aes(x = SR_diff)) +
-  geom_histogram() +
-  geom_vline(xintercept = 0, colour = "red", linetype = "dashed") +
-  xlab("Delta: species richness") +
-  theme_bw()
+  summarise(diff_SR = diff(SR))
 
-site[site$Pool == "P21", ]
-View(sp[site$Pool == "P21", ])
+# join the SR_d to the extinctino data
+dom.df <- full_join(SR_d, dom.df, by = "Pool")
+dom.df <- 
+  dom.df %>%
+  mutate(thresh = as.character(thresh))
+
+# plot the change in species richness and the extinction of species at different thresholds
+ggplot(data = dom.df %>% 
+         filter(diff_SR < 0) %>%
+         mutate(diff_SR = abs(diff_SR)),
+       mapping = aes(x = diff_SR, y = n_ext, colour = thresh)) +
+  geom_jitter(width = 0.1, height = 0.1, alpha = 0.5, size = 2) +
+  geom_abline(intercept = 0, slope = 1, linetype = "dashed") +
+  scale_colour_viridis_d(option = "C", end = 0.95) +
+  scale_x_continuous(limits = c(-0.2, 9.2), breaks = seq(0, 8, 2)) +
+  scale_y_continuous(limits = c(-0.2, 9.2),  breaks = seq(0, 8, 2)) +
+  ylab("Number of extinctions (1993-2016)") +
+  xlab("Species richness decrease (1993-2016)") +
+  labs(colour = "Extinction threshold (>)") +
+  theme_bw() +
+  theme(legend.position = "top")
+
+# plot histograms of the relative abundance of species going extinct and colonising
+ext_col.df <- 
+  rbind(data.frame(ext_col = "Extinction",
+                 ra = unlist(lapply(dom, function(x) x[[2]] ), use.names = FALSE)),
+        data.frame(ext_col = "Colonisation",
+                 ra = unlist(lapply(dom, function(x) x[[3]] ), use.names = FALSE)) )
+
+# plot these data
+ggplot(data = ext_col.df,
+       mapping = aes(x = ra, colour = ext_col, fill = ext_col)) +
+  geom_density() +
+  geom_vline(xintercept = 0.5, linetype = "dashed") +
+  scale_colour_viridis_d(end = 0.9) +
+  scale_fill_viridis_d(end = 0.9) +
+  facet_wrap(~ext_col, scales = "free_y") +
+  xlab("Relative abundance (1993)") +
+  ylab("Density") +
+  theme_bw() +
+  theme(legend.position = "none")
+
+
+
 
 
 
