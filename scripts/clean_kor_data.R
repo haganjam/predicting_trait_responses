@@ -30,7 +30,7 @@ multiplesheets <- function(fname, nmax, skip = 0) {
 }
 
 # use the function to load the community data
-com <- multiplesheets(fname = here("data/community_data/community_data_Korranneberg_1998_2018.xlsx"),
+com <- multiplesheets(fname = here("data/Korranneberg_data/community_data/community_data_Korranneberg_1998_2018.xlsx"),
                       nmax = 36)
 
 # get the date and days of inundation
@@ -57,12 +57,12 @@ com <-
 
 # write the community data into a .csv file
 write_csv(x = com,
-          file = here("data/analysis_data/com_dat.csv"))
+          file = here("data/analysis_data/kor_com.csv"))
 
 
 # load the environmental data
 env <- 
-  readxl::read_excel(here("data/environmental_variables/environmental_data_Korranneberg.xlsx"))
+  readxl::read_excel(here("data/Korranneberg_data/environmental_variables/environmental_data_Korranneberg.xlsx"))
 names(env)
 
 # rename the pool variable and convert to same format as the community data
@@ -80,6 +80,6 @@ lapply(env, function(x) sum(is.na(x)))
 
 # write the environmental data into a .csv file
 write_csv(x = env,
-          file = here("data/analysis_data/env_dat.csv"))
+          file = here("data/analysis_data/kor_env.csv"))
 
 ### END

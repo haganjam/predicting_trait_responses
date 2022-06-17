@@ -5,10 +5,8 @@
 library(dplyr)
 library(readr)
 library(tidyr)
-library(ggplot2)
 library(here)
 library(stringr)
-library(vegan)
 
 # load the community data
 com <- read_csv(here("data/australia_inselbergs/reg_spp_site_dat.csv"))
@@ -39,7 +37,6 @@ high_tax[high_tax == "Turb"] <- "Turbellaria"
 high_tax[73:75] <- word(name.x[73:75], 2, 2) 
 
 # check 88: add pupae later
-name.x[88]
 high_tax[88] <- "Orthocladiinae"
 
 # replace mites with Acari
@@ -83,17 +80,17 @@ com <-
   arrange(site)
 
 # make a data.frame to get the biomass values for these different taxa
-# bio_sp <- 
-  # com %>%
-  # select(taxon) %>%
-  # distinct() %>%
-  # mutate(life_stage = NA)
+bio_sp <- 
+  com %>%
+  select(taxon) %>%
+  distinct() %>%
+  mutate(life_stage = NA)
 
-# bio_sp[bio_sp$taxon == "Orthocladiinae", ]$life_stage <- "pupae"
+bio_sp[bio_sp$taxon == "Orthocladiinae", ]$life_stage <- "pupae"
 # View(bio_sp)
 
 # write this into a .csv file
-# write_csv(x = bio_sp, here("data/biomass_conversions/aus_insel_bio.csv"))
+write_csv(x = bio_sp, here("data/biomass_conversions/aus_insel_bio.csv"))
 
 
 # load the environmental data
@@ -104,6 +101,14 @@ head(env)
 env <- 
   env %>%
   rename(site = Species)
+
+# rename other env columns
+names(env)
+env <- 
+  env %>%
+  rename(cluster_size = `Cluster size`,
+         rock_10km = `Rocks 10km`,
+         height_ggearth = `Elevation (ggearth)`)
 
 # arrange by site
 env <- 
@@ -117,8 +122,10 @@ com <- com[rep(x, each = length(unique(com$species))), ]
 
 # what about the number of sites
 length(unique(env$site)) == length(unique(com$site))
+all(env$site == unique(com$site))
 
+# write these data into files for analysis
+write_csv(x = com, file = here("data/analysis_data/aus_ins_com.csv"))
+write_csv(x = env, file = here("data/analysis_data/aus_ins_env.csv"))
 
-
-
-
+### END
