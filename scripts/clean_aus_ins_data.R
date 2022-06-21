@@ -73,6 +73,22 @@ com <-
   select(site, species, taxon, abundance)
 head(com)
 
+# check the taxon names
+sort(unique(com$taxon))
+sort(unique(com$species))
+
+# fix the unidentified names
+com <- 
+  com %>%
+  mutate(species = ifelse(species == "unidentified_Ceratopogonidae", "Ceratopogonidae", species)) %>%
+  mutate(species = ifelse(species == "unidentified_snail", "Gastropod", species)) %>%
+  mutate(taxon = ifelse(species == "Ceratopogonidae", "Ceratopogonidae", taxon)) %>%
+  mutate(taxon = ifelse(species == "Gastropod", "Gastropod", taxon))
+
+# check the taxon names
+sort(unique(com$taxon))
+sort(unique(com$species))
+  
 # arrange it by site
 com <- 
   com %>%
@@ -86,7 +102,36 @@ bio_sp <-
   mutate(life_stage = NA)
 
 bio_sp[bio_sp$taxon == "Orthocladiinae", ]$life_stage <- "pupae"
-# View(bio_sp)
+
+# add life stage data
+bio_sp$life_stage <- 
+  c("adult", "adult", "adult", 
+    "adult", "adult", "adult",
+    "adult", "adult", "adult",
+    "adult", "adult", "adult",
+    "adult", "adult", "adult",
+    "adult", "adult", "adult",
+    "adult", "adult", "adult",
+    "adult", "adult", "adult",
+    "adult", "adult", "adult",
+    "adult", "adult", "adult",
+    NA, NA, "tadpole",
+    "tadpole", "adult", "adult",
+    "adult", "adult", "adult", 
+    "adult", "adult", "adult",
+    "larva", "larva", "adult", 
+    "adult", "adult", "adult",
+    "adult", "adult", "adult", 
+    "nymph", NA, NA, 
+    NA, NA, "adult", 
+    "adult", "larva", "larva", 
+    "larva", "larva", "larva", 
+    "larva", "larva", "larva", 
+    "larva", "larva", "larva", 
+    "larva", "larva", "larva",
+    "larva", "larva", "larva", 
+    "adult", "adult", "adult",
+    "adult", "adult")
 
 # write this into a .csv file
 write_csv(x = bio_sp, here("data/biomass_conversions/aus_ins_bio.csv"))
