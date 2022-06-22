@@ -117,13 +117,33 @@ dom.df <-
   dom.df %>%
   mutate(thresh = as.character(thresh))
 
+# plot the change in species richness as a histogram
+p1 <- 
+  dom.df %>%
+  filter(thresh == 0.05) %>%
+  ggplot(data = .,
+         mapping = aes(x = diff_SR)) +
+  geom_histogram(alpha = 0.4) +
+  ylab("Frequency") +
+  xlab("Species richness change") +
+  ggtitle(label = "") +
+  geom_vline(xintercept = 0, linetype = "dashed", colour = "red", size = 0.8) +
+  theme_meta() +
+  theme(title = element_text(size = 30))
+p1
+
 dom.df1 <- 
   dom.df %>% 
   filter(diff_SR < 0) %>%
   mutate(diff_SR = abs(diff_SR))
 
+dom.df1 %>%
+  filter(thresh == 0.05) %>%
+  nrow()
+
 # plot the change in species richness and the extinction of species at different thresholds
-ggplot(data = dom.df1,
+p2 <- 
+  ggplot(data = dom.df1,
        mapping = aes(x = diff_SR, y = n_ext, colour = thresh)) +
   geom_jitter(width = 0.1, height = 0.1, alpha = 0.75, size = 2, shape = 16) +
   geom_abline(intercept = 0, slope = 1, linetype = "dashed") +
@@ -140,6 +160,7 @@ ggplot(data = dom.df1,
         legend.title = element_text(size = 11),
         legend.text = element_text(size = 10),
         legend.spacing.x = unit(0.1, 'cm'))
+p2
 
 # plot histograms of the relative abundance of species going extinct and colonising
 ext_col.df <- 
@@ -149,7 +170,8 @@ ext_col.df <-
                  ra = unlist(lapply(dom, function(x) x[[3]] ), use.names = FALSE)) )
 
 # plot these data
-ggplot(data = ext_col.df,
+p3 <- 
+  ggplot(data = ext_col.df,
        mapping = aes(x = ra, colour = ext_col, fill = ext_col)) +
   geom_density() +
   geom_vline(xintercept = 0.5, linetype = "dashed") +
@@ -160,5 +182,10 @@ ggplot(data = ext_col.df,
   ylab("Density") +
   theme_meta() +
   theme(legend.position = "none")
+
+library(ggpubr)
+
+ggarrange( ggarrange(p1, p2), p3,
+           ncol = 1, nrow = 2)
 
 ### END
