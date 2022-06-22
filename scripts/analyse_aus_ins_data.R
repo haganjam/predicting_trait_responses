@@ -45,11 +45,28 @@ env <-
           by = "site")
 View(env)
 
+# fit a power function between species richness and cluster size
+glm.x <- nls(SR ~ a*cluster_size^b, data = env)
+
+# get predictions
+# https://stackoverflow.com/questions/52973626/how-to-calculate-95-prediction-interval-from-nls
+# confidence intervals calculated usin delta method
+df.pred <- data.frame(cluster_size = seq(12, 410, 1))
+glm.pred <- investr::predFit(glm.x, df.pred, interval="prediction")
+df.pred <- cbind(df.pred, glm.pred)
+names(df.pred) <- c("cluster_size", "SR", "lwr", "upr")
+
 # plot species richness by cluster size
-ggplot(data = env,
-       mapping = aes(x = cluster_size, y = SR)) +
-  geom_point() +
-  geom_smooth(method = "lm", formula = y ~ poly(x, 2)) +
+ggplot() +
+  geom_ribbon(data = df.pred,
+              mapping = aes(x = cluster_size, ymin = lwr, ymax = upr),
+              alpha = 0.1) +
+  geom_point(data = env,
+             mapping = aes(x = cluster_size, y = SR)) +
+  geom_line(data = df.pred,
+            mapping = aes(x = cluster_size, y = SR)) +
+  xlab("Number of pools (cluster size)") +
+  ylab("Local species pool richness") +
   theme_meta()
 
 
