@@ -133,6 +133,13 @@ bio_sp$life_stage <-
     "adult", "adult", "adult",
     "adult", "adult")
 
+bio_sp <- 
+  full_join(bio_sp, 
+            com[, c("species", "taxon")] %>%
+              distinct(), 
+            by = "taxon") %>%
+  select(species, taxon, life_stage)
+
 # write this into a .csv file
 write_csv(x = bio_sp, here("data/biomass_conversions/aus_ins_bio.csv"))
 
