@@ -128,9 +128,40 @@ for (i in 1:4) {
 p.adjust(p = pvals2, method = "bonferroni")
 
 
+# match up the biomass data with the community data
+bio_dat <- read_csv(here("data/biomass_conversions/ins_aus_input.csv"))
+head(bio_dat)
 
+# subset the relevant columns
+bio_dat <- 
+  bio_dat %>%
+  select(target_name, target_life_stage, mass) %>%
+  rename(taxon = target_name)
 
+# join this to the community data
+com_bio <- full_join(com, bio_dat, by = "taxon")
+View(com_bio)
 
+# calculate biomass
+com_bio <- 
+  com_bio %>%
+  mutate(biomass = abundance*mass)
+
+# exclude sites where biomass is NA and species have relative abundance greater than 0.05
+length(unique(com$site))
+
+com_bio <- 
+  com_bio %>%
+  group_by(site) %>%
+  mutate(exclude = ifelse(any(is.na(biomass) & (relative_abundance > 0.05)), 1, 0)) %>%
+  filter(exclude == 0)
+length(unique(com_bio$site))
+
+# multiply the abundance by each biomass value
+com_bio %>%
+  mutate(biomass = abundance*mass) %>%
+  group_by(site) %>%
+  group_by(biomass = sum(biomass))
 
 
 
