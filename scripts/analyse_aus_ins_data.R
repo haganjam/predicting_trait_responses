@@ -57,7 +57,8 @@ df.pred <- cbind(df.pred, glm.pred)
 names(df.pred) <- c("cluster_size", "SR", "lwr", "upr")
 
 # plot species richness by cluster size
-ggplot() +
+p1 <- 
+  ggplot() +
   geom_ribbon(data = df.pred,
               mapping = aes(x = cluster_size, ymin = lwr, ymax = upr),
               alpha = 0.1) +
@@ -68,7 +69,7 @@ ggplot() +
   xlab("Number of pools (cluster size)") +
   ylab("Local species pool richness") +
   theme_meta()
-
+p1
 
 # what about environmental variation?
 names(env)
@@ -127,25 +128,29 @@ for (i in 1:4) {
 # correct the p-values
 p.adjust(p = pvals2, method = "bonferroni")
 
+# arrange the environmental variables by site
+env <- 
+  env %>%
+  arrange(site)
+
 
 # match up the biomass data with the community data
-bio_dat <- read_csv(here("data/biomass_conversions/ins_aus_input.csv"))
+bio_dat <- read_csv(here("data/biomass_conversions/aus_ins_bio.csv"))
 head(bio_dat)
 
 # subset the relevant columns
 bio_dat <- 
   bio_dat %>%
-  select(target_name, target_life_stage, mass) %>%
-  rename(taxon = target_name)
+  select(species, life_stage, biomass_mg)
 
 # join this to the community data
-com_bio <- full_join(com, bio_dat, by = "taxon")
+com_bio <- full_join(com, bio_dat, by = "species")
 View(com_bio)
 
 # calculate biomass
 com_bio <- 
   com_bio %>%
-  mutate(biomass = abundance*mass)
+  mutate(biomass_mg = abundance*biomass_mg)
 
 # exclude sites where biomass is NA and species have relative abundance greater than 0.05
 length(unique(com$site))
@@ -153,22 +158,42 @@ length(unique(com$site))
 com_bio <- 
   com_bio %>%
   group_by(site) %>%
-  mutate(exclude = ifelse(any(is.na(biomass) & (relative_abundance > 0.05)), 1, 0)) %>%
+  mutate(exclude = ifelse(any(is.na(biomass_mg) & (relative_abundance > 0.05)), 1, 0)) %>%
   filter(exclude == 0)
 length(unique(com_bio$site))
 
 # multiply the abundance by each biomass value
-com_bio %>%
-  mutate(biomass = abundance*mass) %>%
+env$biomass_mg <- 
+  com_bio %>%
   group_by(site) %>%
-  group_by(biomass = sum(biomass))
+  summarise(biomass_mg = sum(biomass_mg, na.rm = TRUE), .groups = "drop") %>%
+  arrange(site) %>%
+  pull(biomass_mg)
 
+# plot species richness by cluster size
+p2 <- 
+  ggplot(data = env,
+       mapping = aes(x = SR, y = biomass_mg)) +
+  geom_point() +
+  geom_smooth(method = "lm", se = TRUE, colour = "black", alpha = 0.2) +
+  xlab("Local species pool richness") +
+  ylab("Biomass (mg)") +
+  theme_meta()
+p2
 
+lm.x <- lm(biomass_mg ~ SR, data = env)
+plot(lm.x)
+summary(lm.x)
 
+# check that we have a figures folder
+if(! dir.exists(here("figures"))){
+  dir.create(here("figures"))
+}
 
+# arrange these two plots
+p12 <- ggpubr::ggarrange(p1, p2, labels = c("a", "b"),
+                         font.label = list(size = 11, color = "black", face = "plain", family = NULL))
+ggsave(filename = here("figures/fig_4.png"), p12,
+       width = 18, height = 9, units = "cm", dpi = 300)
 
-
-
-
-
-
+### END

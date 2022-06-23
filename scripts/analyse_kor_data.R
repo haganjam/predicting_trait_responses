@@ -51,13 +51,64 @@ com1 <-
 # check if any pool has more than three samples
 range(com1$n)
 
+# calculate relative abundance
+com1 <- 
+  com1 %>%
+  group_by(Pool, d1990_d2000) %>%
+  mutate(sum_abundance = sum(abundance.m)) %>%
+  ungroup() %>%
+  mutate(relative_abundance = round( abundance.m/sum_abundance, 5) ) %>%
+  select(-sum_abundance)
+
+# read in the .csv with the biomass data
+kor_bio <- read_csv(here("data/biomass_conversions/kor_bio.csv"))
+head(kor_bio)
+
+# rename the taxon column to species
+kor_bio <- 
+  kor_bio %>%
+  rename(species = taxon)
+
+# join the biomass to the com1 data
+com1 <- full_join(com1, kor_bio, by = "species")
+View(com1)
+
+# check if the missing biomass values matter
+com1 <- 
+  com1 %>%
+  group_by(Pool, d1990_d2000) %>%
+  mutate(exclude = ifelse(any(is.na(biomass_mg) & (relative_abundance > 0.05)), 1, 0)) %>%
+  filter(exclude == 0) %>%
+  select(-exclude)
+length(unique(com1$Pool))
+
+com1 %>%
+  group_by(Pool) %>%
+  summarise(check = length(unique(d1990_d2000))) %>%
+  View()
+
+# remove pools p4 and p6
+com1 <- 
+  com1 %>%
+  filter(!(Pool %in% c("P4", "P6")))
+
+# remove records without any biomass
+com1 <- 
+  com1 %>%
+  filter(!is.na(biomass_mg))
+
+# calculate biomass for each species
+com1 <- 
+  com1 %>%
+  mutate(biomass_mg = abundance.m*biomass_mg)
+
 # pivot com1 wider again
 com1 <- 
   com1 %>%
-  select(-n) %>%
+  select(-n, -abundance.m, -relative_abundance, -life_stage) %>%
   pivot_wider(id_cols = c("Pool", "d1990_d2000"),
               names_from = "species",
-              values_from = "abundance.m")
+              values_from = "biomass_mg")
 head(com1)
 
 # create a site information data.frame
@@ -72,7 +123,6 @@ head(sp)
 site$SR <- apply(sp, 1, function(x) sum(x > 0) )
 
 sp.l <- split(sp, site$Pool)
-apply(sp.l[[1]], 1, function(x) x/sum(x))
 
 dom <- 
   lapply(sp.l, function(y) {
@@ -123,11 +173,11 @@ p1 <-
   filter(thresh == 0.05) %>%
   ggplot(data = .,
          mapping = aes(x = diff_SR)) +
-  geom_histogram(alpha = 0.4) +
+  geom_histogram(alpha = 1, colour = "black", fill = "black") +
   ylab("Frequency") +
   xlab("Species richness change") +
   ggtitle(label = "") +
-  geom_vline(xintercept = 0, linetype = "dashed", colour = "red", size = 0.8) +
+  geom_vline(xintercept = 0, linetype = "dashed", colour = "red") +
   theme_meta() +
   theme(title = element_text(size = 30))
 p1
@@ -159,7 +209,7 @@ p2 <-
         legend.key = element_rect(fill = NA, color = NA),
         legend.title = element_text(size = 11),
         legend.text = element_text(size = 10),
-        legend.spacing.x = unit(0.1, 'cm'))
+        legend.spacing.x = unit(0.01, 'cm'))
 p2
 
 # plot histograms of the relative abundance of species going extinct and colonising
@@ -171,21 +221,76 @@ ext_col.df <-
 
 # plot these data
 p3 <- 
-  ggplot(data = ext_col.df,
-       mapping = aes(x = ra, colour = ext_col, fill = ext_col)) +
-  geom_density() +
+  ggplot(data = ext_col.df %>% filter(ext_col == "Extinctions"),
+       mapping = aes(x = ra)) +
+  geom_density(fill = "black") +
   geom_vline(xintercept = 0.5, linetype = "dashed") +
   scale_colour_viridis_d(end = 0.9) +
   scale_fill_viridis_d(end = 0.9) +
-  facet_wrap(~ext_col, scales = "free_y") +
   xlab("Relative abundance (1993)") +
-  ylab("Density") +
+  ylab("Density (N = 159)") +
+  ggtitle("Extinctions") +
   theme_meta() +
-  theme(legend.position = "none")
+  theme(legend.position = "none",
+        plot.title = element_text(hjust = 0.5))
+p3
+
+# plot these data
+p4 <- 
+  ggplot(data = ext_col.df %>% filter(ext_col == "Colonisations"),
+         mapping = aes(x = ra)) +
+  geom_density(fill = "black") +
+  geom_vline(xintercept = 0.5, linetype = "dashed") +
+  scale_colour_viridis_d(end = 0.9) +
+  scale_fill_viridis_d(end = 0.9) +
+  xlab("Relative abundance (1993)") +
+  ylab("Density (N = 146)") +
+  ggtitle("Colonisations") +
+  theme_meta() +
+  theme(legend.position = "none",
+        plot.title = element_text(hjust = 0.5))
+p4
 
 library(ggpubr)
 
-ggarrange( ggarrange(p1, p2), p3,
-           ncol = 1, nrow = 2)
+p14 <-
+  ggarrange( p1, p2, p3, p4,
+           ncol = 2, nrow = 2,
+           labels = c("a", "b", "c", "d"),
+           font.label = list(size = 11, color = "black", face = "plain", family = NULL))
+
+# check that we have a figures folder
+if(! dir.exists(here("figures"))){
+  dir.create(here("figures"))
+}
+
+# arrange these two plots
+ggsave(filename = here("figures/fig_2.png"), p14,
+       width = 20, height = 18, units = "cm", dpi = 300)
+
+# calculate total biomass for each pond at the different time points
+site$biomass <- apply(sp, 1, function(x) sum(x) )
+
+# calculate the difference in biomass per pond
+SR_bio_d <- 
+  site %>%
+  group_by(Pool) %>%
+  summarise(diff_SR = diff(SR),
+            diff_biomass = diff(biomass))
+
+cor.test(SR_bio_d$diff_SR, SR_bio_d$diff_biomass)
+
+p5 <- 
+  ggplot(data = SR_bio_d,
+       mapping = aes(x = diff_SR, y = diff_biomass)) +
+  geom_point() +
+  geom_smooth(method = "lm", se = TRUE, colour = "black", alpha = 0.2) +
+  ylab("Change in biomass (mg)") +
+  xlab("Change in species richness") +
+  theme_meta()
+
+# arrange these two plots
+ggsave(filename = here("figures/fig_3.png"), p5,
+       width = 10, height = 8, units = "cm", dpi = 450)
 
 ### END
