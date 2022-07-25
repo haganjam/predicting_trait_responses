@@ -79,7 +79,8 @@ com1 <-
   group_by(Pool, d1990_d2000) %>%
   mutate(exclude = ifelse(any(is.na(biomass_mg) & (relative_abundance > 0.05)), 1, 0)) %>%
   filter(exclude == 0) %>%
-  select(-exclude)
+  select(-exclude) %>%
+  ungroup()
 length(unique(com1$Pool))
 
 com1 %>%
@@ -116,7 +117,7 @@ site <- com1[, c("Pool", "d1990_d2000")]
 head(site)
 
 # create a species abundance data.frame
-sp <- com1[, names(com1) != c("Pool", "d1990_d2000")]
+sp <- com1[, !(names(com1) %in% c("Pool", "d1990_d2000")) ]
 head(sp)
 
 # add a column of species richness
@@ -128,32 +129,13 @@ dom <-
   lapply(sp.l, function(y) {
     
     x <- apply(y, 1, function(x) x/sum(x))
-  
-    # did any species with a relative abundance of greater than 0.10 go extinct?
-    thresh <- c(0.05, 0.1, 0.5, 0.7)
-    
-    n_ext <- 
-      sapply(thresh, function(z) {
-        
-        sum((x[,1] > z) & (x[,2] == 0) )
-        
-      })
-    
-    dom_ext <- data.frame(thresh = thresh,
-                          n_ext = n_ext)
     
     ra_ext <- x[,1][(x[,1] > 0) & (x[,2] == 0)]
     ra_col <- x[,2][(x[,1] == 0) & (x[,2] > 0)]
     
-  return(list(dom_ext, "ra_extinct" = ra_ext, "ra_colonise" = ra_col))
+  return(list("ra_extinct" = ra_ext, "ra_colonise" = ra_col))
   
 } )
-
-dom.df <- 
-  lapply(dom, function(x) x[[1]] ) %>%
-  bind_rows(., .id = "Pool") %>%
-  arrange(Pool)
-View(dom.df)
 
 # calculate the difference in species richness
 SR_d <- 
@@ -161,63 +143,54 @@ SR_d <-
   group_by(Pool) %>%
   summarise(diff_SR = diff(SR))
 
-# join the SR_d to the extinctino data
-dom.df <- full_join(SR_d, dom.df, by = "Pool")
-dom.df <- 
-  dom.df %>%
-  mutate(thresh = as.character(thresh))
-
 # plot the change in species richness as a histogram
 p1 <- 
-  dom.df %>%
-  filter(thresh == 0.05) %>%
-  ggplot(data = .,
+  ggplot(data = SR_d,
          mapping = aes(x = diff_SR)) +
   geom_histogram(alpha = 1, colour = "black", fill = "black") +
   ylab("Frequency") +
   xlab("Species richness change") +
-  ggtitle(label = "") +
   geom_vline(xintercept = 0, linetype = "dashed", colour = "red") +
-  theme_meta() +
-  theme(title = element_text(size = 30))
-p1
+  theme_meta()
+plot(p1)
 
-dom.df1 <- 
-  dom.df %>% 
-  filter(diff_SR < 0) %>%
-  mutate(diff_SR = abs(diff_SR))
 
-dom.df1 %>%
-  filter(thresh == 0.05) %>%
-  nrow()
+# contrast regional species richness between the two time-points
 
-# plot the change in species richness and the extinction of species at different thresholds
+# 1990 regional species richness
+reg_1990 <- apply(com1[com1$d1990_d2000 == "1990", !(names(com1) %in% c("Pool", "d1990_d2000")) ], 2, sum)
+reg_1990 <- sum(ifelse(reg_1990 > 0, 1, 0))
+print(reg_1990)
+
+# 2016 regional species richness
+reg_2016 <- apply(com1[com1$d1990_d2000 == "2016", !(names(com1) %in% c("Pool", "d1990_d2000")) ], 2, sum)
+reg_2016 <- sum(ifelse(reg_2016 > 0, 1, 0))
+print(reg_2016)
+
+rbind(reg_1990, reg_2016) %>% View()
+
+# combine into a data.frame
+df_reg <- 
+  data.frame(year = c("1990", "2016"),
+             reg_richness = c(reg_1990, reg_2016))
+
+# plot these results
 p2 <- 
-  ggplot(data = dom.df1,
-       mapping = aes(x = diff_SR, y = n_ext, colour = thresh)) +
-  geom_jitter(width = 0.1, height = 0.1, alpha = 0.75, size = 2, shape = 16) +
-  geom_abline(intercept = 0, slope = 1, linetype = "dashed") +
-  scale_colour_viridis_d(option = "C", end = 0.95) +
-  #scale_fill_viridis_d(option = "C", end = 0.95) +
-  scale_x_continuous(limits = c(-0.2, max(dom.df1$diff_SR)+0.2 ), breaks = seq(0, 10, 2)) +
-  scale_y_continuous(limits = c(-0.2, max(dom.df1$diff_SR)+0.2),  breaks = seq(0, 10, 2)) +
-  ylab("Number of extinctions (1993-2016)") +
-  xlab("Species richness decrease (1993-2016)") +
-  labs(colour = "Extinction threshold (>)") +
-  theme_meta() +
-  theme(legend.position = "top",
-        legend.key = element_rect(fill = NA, color = NA),
-        legend.title = element_text(size = 11),
-        legend.text = element_text(size = 10),
-        legend.spacing.x = unit(0.01, 'cm'))
-p2
+  ggplot(data = df_reg,
+       mapping = aes(x = year, y = reg_richness)) +
+  geom_col(width = 0.25, colour = "black", fill = "black") +
+  ylab("Regional species richness") +
+  xlab("Year") + 
+  geom_hline(yintercept = 30, linetype = "dashed", colour = "red") +
+  theme_meta()
+plot(p2)
 
 # plot histograms of the relative abundance of species going extinct and colonising
 ext_col.df <- 
   rbind(data.frame(ext_col = "Extinctions",
-                 ra = unlist(lapply(dom, function(x) x[[2]] ), use.names = FALSE)),
+                   ra = unlist(lapply(dom, function(x) x[[1]] ), use.names = FALSE)),
         data.frame(ext_col = "Colonisations",
-                 ra = unlist(lapply(dom, function(x) x[[3]] ), use.names = FALSE)) )
+                 ra = unlist(lapply(dom, function(x) x[[2]] ), use.names = FALSE)) )
 
 # plot these data
 p3 <- 
@@ -233,7 +206,7 @@ p3 <-
   theme_meta() +
   theme(legend.position = "none",
         plot.title = element_text(hjust = 0.5))
-p3
+plot(p3)
 
 # plot these data
 p4 <- 
@@ -243,21 +216,22 @@ p4 <-
   geom_vline(xintercept = 0.5, linetype = "dashed") +
   scale_colour_viridis_d(end = 0.9) +
   scale_fill_viridis_d(end = 0.9) +
-  xlab("Relative abundance (1993)") +
+  xlab("Relative abundance (2016)") +
   ylab("Density (N = 146)") +
   ggtitle("Colonisations") +
   theme_meta() +
   theme(legend.position = "none",
         plot.title = element_text(hjust = 0.5))
-p4
+plot(p4)
+
 
 library(ggpubr)
-
 p14 <-
   ggarrange( p1, p2, p3, p4,
            ncol = 2, nrow = 2,
            labels = c("a", "b", "c", "d"),
            font.label = list(size = 11, color = "black", face = "plain", family = NULL))
+plot(p14)
 
 # check that we have a figures folder
 if(! dir.exists(here("figures"))){
@@ -288,6 +262,15 @@ p5 <-
   ylab("Change in biomass (mg)") +
   xlab("Change in species richness") +
   theme_meta()
+plot(p5)
+
+# check some of the extreme points
+SR_bio_d %>%
+  filter(diff_biomass < -1000)
+  
+com1 %>%
+  filter(Pool %in% c("P32", "P22", "P33", "P34", "P35")) %>%
+  View()
 
 # arrange these two plots
 ggsave(filename = here("figures/fig_3.png"), p5,

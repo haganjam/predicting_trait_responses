@@ -69,7 +69,7 @@ p1 <-
   xlab("Number of pools (cluster size)") +
   ylab("Local species pool richness") +
   theme_meta()
-p1
+plot(p1)
 
 # what about environmental variation?
 names(env)
@@ -137,6 +137,7 @@ env <-
 # match up the biomass data with the community data
 bio_dat <- read_csv(here("data/biomass_conversions/aus_ins_bio.csv"))
 head(bio_dat)
+View(bio_dat)
 
 # subset the relevant columns
 bio_dat <- 
@@ -179,7 +180,7 @@ p2 <-
   xlab("Local species pool richness") +
   ylab("Biomass (mg)") +
   theme_meta()
-p2
+plot(p2)
 
 lm.x <- lm(biomass_mg ~ SR, data = env)
 plot(lm.x)
